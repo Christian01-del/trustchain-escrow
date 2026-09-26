@@ -46,3 +46,31 @@ export const secureStorage = {
     });
   },
 };
+
+export type SecureStorageMigration = {
+  from: string;
+  to: string;
+  removeSource?: boolean;
+};
+
+export async function migrateSecureStorageKeys(
+  migrations: SecureStorageMigration[],
+): Promise<string[]> {
+  const migrated: string[] = [];
+
+  for (const migration of migrations) {
+    const existingTarget = await secureStorage.get(migration.to);
+    if (existingTarget) continue;
+
+    const legacyValue = await secureStorage.get(migration.from);
+    if (!legacyValue) continue;
+
+    await secureStorage.set(migration.to, legacyValue);
+    if (migration.removeSource !== false) {
+      await secureStorage.delete(migration.from);
+    }
+    migrated.push(migration.to);
+  }
+
+  return migrated;
+}
