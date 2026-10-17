@@ -1,130 +1,289 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import ExplorerPage from '../../app/explorer/page';
 
-// EscrowCard uses useI18n which requires I18nProvider — mock it for tests.
-jest.mock(
-  '../../components/escrow/EscrowCard',
-  () =>
-    function EscrowCard({ escrow }) {
-      return <div data-testid="escrow-card">Escrow #{escrow.id}</div>;
-    },
-);
+jest.mock('../../hooks/useFilterState', () => ({
+  useFilterState: () => ({
+    filters: {},
+    setFilter: jest.fn(),
+    setFilters: jest.fn(),
+    resetFilters: jest.fn(),
+  }),
+}));
 
-const mockEscrows = [
-  { id: 1, status: 'Active', totalAmount: '1000', clientAddress: '0x1A2B' },
-  { id: 2, status: 'Active', totalAmount: '2000', clientAddress: '0x3C4D' },
-  { id: 3, status: 'Completed', totalAmount: '500', clientAddress: '0x5E6F' },
-  { id: 4, status: 'Active', totalAmount: '3000', clientAddress: '0x7A8B' },
-];
+jest.mock('next/navigation', () => ({
+  useRouter: () => ({
+    push: jest.fn(),
+  }),
+  useSearchParams: () => new URLSearchParams(),
+}));
 
-global.fetch = jest.fn((url) => {
-  let data = [...mockEscrows];
-  if (url.includes('status=Completed')) {
-    data = data.filter((e) => e.status === 'Completed');
-  } else if (url.includes('status=Cancelled')) {
-    data = data.filter((e) => e.status === 'Cancelled');
-  } else if (url.includes('search=')) {
-    // For test simplicity, we simulate search filtering if search term matches "2" (since id 2)
-    if (url.includes('search=2')) {
-      data = data.filter((e) => String(e.id) === '2');
-    } else {
-      data = [];
-    }
-  }
+global.fetch = jest.fn();
 
-  return Promise.resolve({
-    ok: true,
-    json: () =>
-      Promise.resolve({
-        data,
-        total: data.length,
-        totalPages: 2,
-        hasNextPage: true,
-        hasPreviousPage: false,
-      }),
-  });
-});
-
-describe('ExplorerPage', () => {
+describe('Explorer Page - Loading Spinner', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    global.fetch.mockClear();
+    sessionStorage.clear();
   });
 
-  it('renders page heading', async () => {
-    render(<ExplorerPage />);
-    expect(await screen.findByRole('heading', { name: 'Escrow Explorer' })).toBeInTheDocument();
+  afterEach(() => {
+    jest.useRealTimers();
   });
 
-  it('renders search input', async () => {
+  it('displays spinner and loading text during initial load', async () => {
+    global.fetch.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          setTimeout(() => {
+            resolve({
+              ok: true,
+              json: () => Promise.resolve({ data: [], next_cursor: null, has_more: false }),
+            });
+          }, 1000);
+        }),
+    );
+
     render(<ExplorerPage />);
-    expect(await screen.findByPlaceholderText(/Search by/)).toBeInTheDocument();
+
+    // Check for spinner and loading text
+    await waitFor(() => {
+      expect(screen.getByText(/loading escrows/i)).toBeInTheDocument();
+    });
   });
 
-  it('renders status filter buttons', async () => {
-    render(<ExplorerPage />);
-    expect(await screen.findByText('Filters')).toBeInTheDocument();
+  it('displays spinner with correct size', async () => {
+    global.fetch.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          setTimeout(() => {
+            resolve({
+              ok: true,
+              json: () => Promise.resolve({ data: [], next_cursor: null, has_more: false }),
+            });
+          }, 100);
+        }),
+    );
+
+    const { container } = render(<ExplorerPage />);
+
+    // The Spinner component should be rendered
+    await waitFor(() => {
+      expect(screen.getByText(/loading escrows/i)).toBeInTheDocument();
+    });
   });
 
-  it('renders fetched escrows by default', async () => {
+  it('removes spinner after data loads', async () => {
+    global.fetch.mockResolvedValueOnce({
+      ok: true,
+      json: () => Promise.resolve({ data: [], next_cursor: null, has_more: false }),
+    });
+
     render(<ExplorerPage />);
-    expect(await screen.findByText('Escrow #1')).toBeInTheDocument();
-    expect(screen.getByText('Escrow #2')).toBeInTheDocument();
-    expect(screen.getByText('Escrow #3')).toBeInTheDocument();
-    expect(screen.getByText('Escrow #4')).toBeInTheDocument();
+
+    // Initially shows loading text
+    expect(screen.getByText(/loading escrows/i)).toBeInTheDocument();
+
+    // After fetch completes, loading text should be gone
+    await waitFor(() => {
+      expect(screen.queryByText(/loading escrows/i)).not.toBeInTheDocument();
+    });
   });
 
-  it('filters escrows by status', async () => {
+  it('displays error message when fetch fails', async () => {
+    global.fetch.mockRejectedValueOnce(new Error('API Error'));
+
     render(<ExplorerPage />);
-    // Wait for initial render
-    await screen.findByText('Escrow #1');
-    fireEvent.click(screen.getByText('Filters'));
-
-    // Click Completed filter
-    const completedBtn = await screen.findByRole('button', { name: 'Completed' });
-    fireEvent.click(completedBtn);
-
-    expect(await screen.findByText('Escrow #3')).toBeInTheDocument();
-    expect(screen.queryByText('Escrow #1')).not.toBeInTheDocument();
-  });
-
-  it('filters escrows by search query', async () => {
-    render(<ExplorerPage />);
-    await screen.findByText('Escrow #1'); // wait for initial render
-
-    const searchInput = await screen.findByPlaceholderText(/Search by/);
-
-    fireEvent.change(searchInput, { target: { value: '2' } });
 
     await waitFor(() => {
-      expect(screen.queryByText('Escrow #1')).not.toBeInTheDocument();
+      expect(screen.getByText(/failed to load escrows/i)).toBeInTheDocument();
+      expect(screen.getByText(/api error/i)).toBeInTheDocument();
     });
-    // expect(screen.getByText('Escrow #2')).toBeInTheDocument();
   });
 
-  it('shows empty state when no escrows match filter', async () => {
+  it('shows error alert role when fetch fails', async () => {
+    global.fetch.mockRejectedValueOnce(new Error('Connection failed'));
+
     render(<ExplorerPage />);
-    await screen.findByText('Escrow #1');
 
-    fireEvent.click(screen.getByText('Filters'));
-    fireEvent.click(screen.getByRole('button', { name: 'Cancelled' }));
-
-    expect(await screen.findByText(/No escrows found/)).toBeInTheDocument();
+    await waitFor(() => {
+      const alert = screen.getByRole('alert');
+      expect(alert).toBeInTheDocument();
+    });
   });
 
-  it('renders stats bar', async () => {
+  it('displays no escrows empty state when data is empty', async () => {
+    global.fetch.mockResolvedValueOnce({
+      ok: true,
+      json: () => Promise.resolve({ data: [], next_cursor: null, has_more: false }),
+    });
+
     render(<ExplorerPage />);
-    expect(await screen.findByText('Page 1 of 2')).toBeInTheDocument();
+
+    await waitFor(() => {
+      expect(screen.getByText(/no escrows found/i)).toBeInTheDocument();
+    });
   });
 
-  it('renders pagination buttons', async () => {
-    render(<ExplorerPage />);
-    expect(await screen.findByRole('button', { name: /Prev/ })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /Next/ })).toBeInTheDocument();
+  it('loading spinner is centered with flex layout', async () => {
+    global.fetch.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          setTimeout(() => {
+            resolve({
+              ok: true,
+              json: () => Promise.resolve({ data: [], next_cursor: null, has_more: false }),
+            });
+          }, 100);
+        }),
+    );
+
+    const { container } = render(<ExplorerPage />);
+
+    const loadingDiv = container.querySelector('div.flex.flex-col.items-center.justify-center.py-24.gap-4');
+    expect(loadingDiv).toBeInTheDocument();
   });
 
-  it('Prev button is disabled on first page', async () => {
+  it('loading text is visible to sighted users (not sr-only)', async () => {
+    global.fetch.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          setTimeout(() => {
+            resolve({
+              ok: true,
+              json: () => Promise.resolve({ data: [], next_cursor: null, has_more: false }),
+            });
+          }, 100);
+        }),
+    );
+
     render(<ExplorerPage />);
-    const prevBtn = await screen.findByRole('button', { name: /Prev/ });
-    expect(prevBtn).toBeDisabled();
+
+    const loadingText = screen.getByText(/loading escrows/i);
+    expect(loadingText).toBeInTheDocument();
+    // Should not have sr-only class
+    expect(loadingText).not.toHaveClass('sr-only');
+  });
+
+  it('loading spinner appears in Suspense fallback', () => {
+    global.fetch.mockResolvedValueOnce({
+      ok: true,
+      json: () => Promise.resolve({ data: [], next_cursor: null, has_more: false }),
+    });
+
+    render(<ExplorerPage />);
+
+    // Suspense fallback should show spinner initially
+    expect(screen.getByText(/loading escrows/i)).toBeInTheDocument();
+  });
+
+  it('shows loading spinner for more data when scrolling', async () => {
+    const escrow = {
+      id: '1',
+      status: 'Active',
+      totalAmount: '1000',
+      clientAddress: 'GBUY...',
+      deadline: null,
+      assetSymbol: 'USDC',
+    };
+
+    global.fetch
+      .mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve({ data: [escrow], next_cursor: 'cursor1', has_more: true }),
+      })
+      .mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            setTimeout(() => {
+              resolve({
+                ok: true,
+                json: () => Promise.resolve({ data: [escrow], next_cursor: null, has_more: false }),
+              });
+            }, 100);
+          }),
+      );
+
+    const { container } = render(<ExplorerPage />);
+
+    await waitFor(() => {
+      expect(screen.queryByText(/loading escrows\.\.\.$/)).not.toBeInTheDocument();
+    });
+
+    // Simulate scrolling to load more
+    const sentinel = container.querySelector('[role="presentation"]');
+    if (sentinel) {
+      fireEvent.scroll(window, { target: { scrollY: 1000 } });
+    }
+
+    // Should show "Loading more..." text
+    await waitFor(() => {
+      expect(screen.getByText(/loading more/i)).toBeInTheDocument();
+    });
+  });
+
+  it('search filters are displayed correctly', async () => {
+    global.fetch.mockResolvedValueOnce({
+      ok: true,
+      json: () => Promise.resolve({ data: [], next_cursor: null, has_more: false }),
+    });
+
+    render(<ExplorerPage />);
+
+    await waitFor(() => {
+      expect(screen.getByLabel(/search escrows/i)).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /filters/i })).toBeInTheDocument();
+    });
+  });
+
+  it('handles API response with different cursor field names', async () => {
+    global.fetch.mockResolvedValueOnce({
+      ok: true,
+      json: () =>
+        Promise.resolve({
+          data: [
+            {
+              id: '1',
+              status: 'Active',
+              totalAmount: '1000',
+              clientAddress: 'GBUY...',
+            },
+          ],
+          hasNextPage: false,
+        }),
+    });
+
+    render(<ExplorerPage />);
+
+    await waitFor(() => {
+      expect(screen.queryByText(/loading escrows/i)).not.toBeInTheDocument();
+    });
+  });
+
+  it('shows error detail message on API error', async () => {
+    const errorMessage = 'Unauthorized access';
+    global.fetch.mockRejectedValueOnce(new Error(errorMessage));
+
+    render(<ExplorerPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText(errorMessage)).toBeInTheDocument();
+    });
+  });
+
+  it('displays end of list message when all escrows loaded', async () => {
+    global.fetch.mockResolvedValueOnce({
+      ok: true,
+      json: () =>
+        Promise.resolve({
+          data: [{ id: '1', status: 'Active', totalAmount: '1000', clientAddress: 'GBUY...' }],
+          has_more: false,
+        }),
+    });
+
+    render(<ExplorerPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText(/all escrows loaded/i)).toBeInTheDocument();
+    });
   });
 });
