@@ -4,11 +4,11 @@
   "type": "module",
   "private": true,
   "scripts": {
-    "dev": "next dev",
-    "dev:test": "next dev --hostname 127.0.0.1 --port 3000",
-    "build": "next build",
-    "start": "next start",
-    "start:test": "next start --hostname 127.0.0.1 --port 3000",
+    "dev": "node init && next dev",
+    "dev:test": "node init && next dev --hostname 127.0.0.1 --port 3000",
+    "build": "node init && next build",
+    "start": "node init && next start",
+    "start:test": "node init && next start --hostname 127.0.0.1 --port 3000",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "analyze": "cross-env ANALYZE=true next build",
@@ -24,7 +24,7 @@
     "test:perf": "playwright test --config playwright.config.js tests/e2e/performance.spec.js --project=chromium",
     "test:a11y:scan": "node scripts/accessibility-scan.js",
     "storybook": "storybook dev -p 6006",
-    "build-storybook": "storybook build"
+    "build-storybook": "node init && storybook build"
   },
   "dependencies": {
     "@next/bundle-analyzer": "^16.2.1",

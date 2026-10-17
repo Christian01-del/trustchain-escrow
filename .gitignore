@@ -27,12 +27,6 @@ build/
 # ──────────────────────────────────────────────────────────────
 # Environment files — never commit secrets
 # ──────────────────────────────────────────────────────────────
-.env
-.env.local
-.env.development
-.env.production
-.env.test
-**/.env
 **/.env.local
 **/.env.development
 **/.env.production
@@ -59,7 +53,6 @@ Thumbs.db
 # ──────────────────────────────────────────────────────────────
 # IDE
 # ──────────────────────────────────────────────────────────────
-.vscode/settings.json
 .idea/
 *.iml
 
@@ -133,3 +126,4 @@ update-issues-drips.js
 update_all_drips_issues.sh
 /pr_body.md
 /pr_body.txt
+config.bat
