@@ -168,5 +168,4 @@ export default process.env.SENTRY_AUTH_TOKEN
           env: process.env.SENTRY_ENVIRONMENT || process.env.NODE_ENV,
         },
       },
-    })
-  : baseConfig;
+    });
