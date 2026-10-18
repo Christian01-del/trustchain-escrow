@@ -1,0 +1,33 @@
+{
+  "default_branch": "develop",
+  "branches": [
+    "develop",
+    "drips/603-604-605-606",
+    "fix/coredev-trustchain-109-110-171-172",
+    "fix/kcee-tenant-reputation-750-753",
+    "fix/kcee-trustfi-387-390",
+    "kcee/stellar-390-393",
+    "kcee/trustfi-249-252",
+    "origin"
+  ],
+  "parent": {
+    "develop": null,
+    "drips/603-604-605-606": "develop",
+    "fix/coredev-trustchain-109-110-171-172": "develop",
+    "fix/kcee-tenant-reputation-750-753": "develop",
+    "fix/kcee-trustfi-387-390": "develop",
+    "kcee/stellar-390-393": "develop",
+    "kcee/trustfi-249-252": "develop",
+    "origin": "develop"
+  },
+  "order": [
+    "develop",
+    "drips/603-604-605-606",
+    "fix/coredev-trustchain-109-110-171-172",
+    "fix/kcee-tenant-reputation-750-753",
+    "fix/kcee-trustfi-387-390",
+    "kcee/stellar-390-393",
+    "kcee/trustfi-249-252",
+    "origin"
+  ]
+}
