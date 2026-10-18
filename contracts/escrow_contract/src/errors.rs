@@ -1,117 +1,34 @@
 use soroban_sdk::contracterror;
 
-#[contracterror(export = false)]
+/// Stable contract error codes.
+///
+/// Codes are part of the public contract surface: once assigned they must not
+/// be renumbered or reused, so that off-chain consumers can map failures
+/// deterministically. Reputation scoring errors live in the `6xx` range.
+#[contracterror]
 #[derive(Copy, Clone, Debug, Eq, PartialEq, PartialOrd, Ord)]
 #[repr(u32)]
-pub enum EcErr {
-    E1 = 1,
-    E2 = 2,
-    E3 = 3,
-    E4 = 4,
-    E5 = 5,
-    E7 = 7,
-    E8 = 8,
-    E9 = 9,
-    E10 = 10,
-    E11 = 11,
-    E12 = 12,
-    E13 = 13,
-    E14 = 14,
-    E15 = 15,
-    E16 = 16,
-    E17 = 17,
-    E19 = 19,
-    E20 = 20,
-    E22 = 22,
-    E23 = 23,
-    E24 = 24,
-    E26 = 26,
-    E28 = 28,
-    E30 = 30,
-    E31 = 31,
-    E32 = 32,
-    E33 = 33,
-    E34 = 34,
-    E35 = 35,
-    E36 = 36,
-    E37 = 37,
-    E38 = 38,
-    E39 = 39,
-    E40 = 40,
-    E41 = 41,
-    E42 = 42,
-    E43 = 43,
-    E44 = 44,
-    E45 = 45,
-    E46 = 46,
-    E47 = 47,
-    E51 = 51,
-    E53 = 53,
-    E54 = 54,
-    E55 = 55,
-    E56 = 56,
-    E57 = 57,
-    E58 = 58,
-    E59 = 59,
-    E60 = 60,
-    E61 = 61,
-    E62 = 62,
-    E63 = 63,
-    E64 = 64,
-    E65 = 65,
-    E66 = 66,
-    OracleStaleFeed = 67,
-    OracleInvalidPrice = 68,
-    OraclePriceConversionFailed = 69,
-    /// Timelock release time is in the past or zero — must be a future timestamp.
-    TimelockReleasetimeInvalid = 70,
-    /// A timelock release time is already set for this escrow.
-    TimelockAlreadySet = 71,
-    /// Timelock release time has not yet been reached; release is blocked.
-    TimelockNotExpired = 72,
-    /// No timelock release time is configured on this escrow.
-    TimelockNotSet = 73,
-    /// Multisig config is internally inconsistent: `weights` length does not match
-    /// `approvers`, a weight is zero, or `threshold` is zero or exceeds the total weight.
-    MultisigInvalidConfig = 74,
-    /// The caller is not among this escrow's multisig approvers.
-    MultisigNotApprover = 75,
-    /// This signer has already recorded an approval for this milestone.
-    MultisigDuplicateApproval = 76,
-    /// The approver list exceeds `MAX_BUYER_SIGNERS`.
-    MultisigTooManySigners = 77,
-    /// The escrow amount is at or above the high-value threshold, which requires a
-    /// multisig policy needing more than one signer.
-    MultisigRequiredForHighValue = 78,
-    E80 = 80,
-    /// Description string exceeds MAX_STRING_LEN.
-    E81 = 81,
-    /// Escrow is not in Disputed status.
-    E82 = 82,
-    /// Caller is not a party (client or freelancer) to this escrow.
-    E83 = 83,
-    /// Upgrade not authorized.
-    E87 = 87,
-    /// Invalid arbiter fee basis points (must be <= 10000).
-    E88 = 88,
-    /// Arbiter fee exceeds total fee allowance.
-    E89 = 89,
-    /// Arbiter address is not on the allowlist.
-    E90 = 90,
-    /// Arbiter address is already on the allowlist.
-    E91 = 91,
-    /// Arbiter address not found on allowlist.
-    E92 = 92,
-    /// The brief hash is all zeros, so no agreement document is bound to the escrow.
-    InvalidBriefHash = 79,
-    /// Escrow amount is below the minimum allowed threshold.
-    E84 = 84,
-    /// Escrow amount exceeds the maximum allowed threshold.
-    E85 = 85,
-    /// Slippage tolerance has been exceeded; the release is rejected.
-    E86 = 86,
-}
+pub enum ContractError {
+    // --- Generic / lifecycle (1xx) ---
+    AlreadyInitialized = 100,
+    NotInitialized = 101,
+    Unauthorized = 102,
+    InvalidAmount = 103,
+    InvalidState = 104,
 
-/// Backward-compatible alias — existing code imports `EscrowError`; the oracle
-/// refactor renamed the enum to `EcErr` without updating call sites.
-pub type EscrowError = EcErr;
+    // --- Escrow (2xx) ---
+    EscrowNotFound = 200,
+    EscrowAlreadyExists = 201,
+    EscrowNotFunded = 202,
+    EscrowAlreadyReleased = 203,
+
+    // --- Reputation scoring determinism (6xx) ---
+    /// Reputation score inputs were not supplied in a deterministic order.
+    ReputationInputsNotDeterministic = 600,
+    /// A reputation score component is outside its allowed bounds.
+    ReputationScoreOutOfBounds = 601,
+    /// Reputation scoring was requested for an unknown or unscored subject.
+    ReputationSubjectUnknown = 602,
+    /// Reputation scoring arithmetic overflowed the deterministic range.
+    ReputationScoreOverflow = 603,
+}
